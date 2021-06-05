@@ -1,0 +1,170 @@
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+
+public class CustomShaderGUI : ShaderGUI
+{
+    private MaterialEditor _materialEditor;
+    private Object[] _materials;
+    private MaterialProperty[] _properties;
+
+    private bool _showPresets;
+
+    public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
+    {
+        base.OnGUI(materialEditor,properties);
+        _materialEditor = materialEditor;
+        _materials = materialEditor.targets;
+        _properties = properties;
+        
+        EditorGUILayout.Space();
+        _showPresets = EditorGUILayout.Foldout(_showPresets, "Presets", true);
+        if (_showPresets)
+        {
+            OpaquePreset();
+            ClipPreset();
+            FadePreset();
+            TransparentPreset();   
+        }
+    }
+
+    void SetKeyword(string keyword,bool enabled)
+    {
+        if (enabled)
+        {
+            foreach (Material material in _materials)
+            {
+                material.EnableKeyword(keyword);
+            }
+        }
+        else
+        {
+            foreach (Material material in _materials)
+            {
+                material.DisableKeyword(keyword);
+            }
+        }
+    }
+
+    //要设置属性，我们首先必须在数组中找到它，为此我们可以使用ShaderGUI.FindPropery方法，并为其传递一个名称和属性数组。然后，通过分配其floatValue属性来调整其值。使用名称和值参数将其封装在方便的SetProperty方法中。
+    bool SetProperty(string name ,float value)
+    {
+        MaterialProperty property = FindProperty(name, _properties,false);
+        if (property != null)
+        {
+            property.floatValue = value;
+            return true;
+        }
+        return false;
+    }
+
+    void SetProperty(string name ,string keyword , bool value)
+    {
+        if (SetProperty(name, value ? 1f : 0f))
+        {
+            SetKeyword(keyword, value);
+        }
+    }
+
+    bool PresetButton(string name)
+    {
+        if (GUILayout.Button(name))
+        {
+            _materialEditor.RegisterPropertyChangeUndo(name);
+            return true;
+        }
+        return false;
+    }
+
+    void OpaquePreset()
+    {
+        if (PresetButton("Opaque"))
+        {
+            Clipping = false;
+            PremultiplyAlpha = false;
+            Srcblend = BlendMode.One;
+            DstBlend = BlendMode.Zero;
+            ZWrite = true;
+            RenderQueue = RenderQueue.Geometry;
+        }
+    }
+
+    void ClipPreset()
+    {
+        if (PresetButton("Clip"))
+        {
+            Clipping = false;
+            PremultiplyAlpha = false;
+            Srcblend = BlendMode.One;
+            DstBlend = BlendMode.Zero;
+            ZWrite = true;
+            RenderQueue = RenderQueue.AlphaTest;
+        }
+    }
+
+    void FadePreset()
+    {
+        if (PresetButton("Fade"))
+        {
+            Clipping = false;
+            PremultiplyAlpha = false;
+            Srcblend = BlendMode.SrcAlpha;
+            DstBlend = BlendMode.OneMinusSrcAlpha;
+            ZWrite = false;
+            RenderQueue = RenderQueue.Transparent;
+        }
+    }
+
+    void TransparentPreset()
+    {
+        if (HasPremultipAlpha && PresetButton("Transparent"))
+        {
+            Clipping = false;
+            PremultiplyAlpha = true;
+            Srcblend = BlendMode.One;
+            DstBlend = BlendMode.OneMinusSrcAlpha;
+            ZWrite = false;
+            RenderQueue = RenderQueue.Transparent;
+        }
+    }
+
+    bool HasProperty(string name) => FindProperty(name, _properties, false) != null;
+    private bool HasPremultipAlpha => HasProperty("_PremulAlpha");
+    
+    private bool Clipping
+    {
+        set => SetProperty("_Clipping", "_CLIPPING", value);
+    }
+
+    private bool PremultiplyAlpha
+    {
+        set => SetProperty("_PremulAlpha", "_PREMULTIPLY_ALPHA", value);
+    }
+
+    private BlendMode Srcblend
+    {
+        set => SetProperty("_SreBlend", (float) value);
+    }
+
+    private BlendMode DstBlend
+    {
+        set => SetProperty("_DstBlend", (float) value);
+    }
+
+    private bool ZWrite
+    {
+        set => SetProperty("_ZWrite", value ? 1f : 0f);
+    }
+
+    RenderQueue RenderQueue
+    {
+        set
+        {
+            foreach (Material mat in _materials)
+            {
+                mat.renderQueue = (int) value;
+            }
+        }
+    }
+}
