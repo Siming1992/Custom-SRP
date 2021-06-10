@@ -4,6 +4,7 @@
 //HLSL并没有类的概念。除了代码块的局部范围外，只有一个全局范围
 #include "../ShaderLibrary/Common.hlsl"
 #include "../ShaderLibrary/Surface.hlsl"
+#include "../ShaderLibrary/Shadows.hlsl"
 #include "../ShaderLibrary/Light.hlsl"
 #include "../ShaderLibrary/BRDF.hlsl"
 #include "../ShaderLibrary/Lighting.hlsl"
@@ -73,6 +74,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     //base.rgb = normalize(input.normalWS);
     
     Surface surface;
+    surface.position = input.postionWS;
     surface.normal = normalize(input.normalWS);
     surface.viewDirection = normalize(_WorldSpaceCameraPos - input.postionWS); 
     surface.color = base.rgb;

@@ -9,9 +9,11 @@ public class Lighting
     private static int _dirLightCountId = Shader.PropertyToID("_DirectionalLightCount");
     private static int _dirLightColorsID = Shader.PropertyToID("_DirectionalLightColors");
     private static int _dirLightDirectionsID = Shader.PropertyToID("_DirectionalLightDirections");
+    private static int _dirLightShadowDataID = Shader.PropertyToID("_DirectionalLightShadowData");
     
     static Vector4[] _dirLightColors = new Vector4[_maxDirLightCount];
     static Vector4[] _dirLightDirections = new Vector4[_maxDirLightCount];
+    static Vector4[] _dirLightShadowData = new Vector4[_maxDirLightCount];
     
     private const string _bufferName = "Lighting";
 
@@ -50,6 +52,7 @@ public class Lighting
         _buffer.SetGlobalInt(_dirLightCountId , visibleLights.Length);
         _buffer.SetGlobalVectorArray(_dirLightColorsID ,_dirLightColors);
         _buffer.SetGlobalVectorArray(_dirLightDirectionsID ,_dirLightDirections);
+        _buffer.SetGlobalVectorArray(_dirLightShadowDataID,_dirLightShadowData);
     }
 
     void SetupDirectionalLight(int index ,ref VisibleLight visibleLight)
@@ -57,7 +60,7 @@ public class Lighting
         _dirLightColors[index] = visibleLight.finalColor;
         //可以通过VisibleLight.localToWorldMatrix属性找到前向矢量。它是矩阵的第三列，必须再次取反。
         _dirLightDirections[index] = -visibleLight.localToWorldMatrix.GetColumn(2);
-        _shadows.ReserveDirectionalShadows(visibleLight.light,index);
+        _dirLightShadowData[index] = _shadows.ReserveDirectionalShadows(visibleLight.light, index);
     }
 
     public void Cleanup()
