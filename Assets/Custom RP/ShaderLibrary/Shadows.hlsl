@@ -2,6 +2,7 @@
 #define CUSTOM_SHADOWS_INCLUDED
 
 #define MAX_SHADOWED_DIRECTIONAL_LIGHT_COUNT 4
+#define MAX_CASCADE_COUNT 4
 
 //由于图集不是常规的纹理，因此我们可以通过TEXTURE2D_SHADOW宏对其进行定义，即使它对我们支持的平台没有影响，也要使其清晰可见。
 TEXTURE2D_SHADOW(_DirectionalShadowAtlas);
@@ -11,8 +12,28 @@ TEXTURE2D_SHADOW(_DirectionalShadowAtlas);
 SAMPLER_CMP(SHADOW_SAMPLER);
 
 CBUFFER_START(_CustomShadow)
-    float4x4 _DirectionalShadowMatrices[MAX_SHADOWED_DIRECTIONAL_LIGHT_COUNT];
+    int _CascadeCount;
+    float4 _CascadeCullingSpheres[MAX_CASCADE_COUNT];
+    float4x4 _DirectionalShadowMatrices[MAX_SHADOWED_DIRECTIONAL_LIGHT_COUNT * MAX_CASCADE_COUNT];  //如果修改数组长度，Unity将抱怨着色器的数组大小已更改，但无法使用新的大小。这是因为一旦着色器声明了固定数组，就无法在同一会话期间在GPU上更改其大小。我们需要重新启动Unity才能对其进行初始化。
 CBUFFER_END
+
+struct ShadowData{
+    int cascadeIndex;
+};
+
+ShadowData GetShadowData(Surface surfaceWS){
+    ShadowData data;
+    int i;
+    for(i = 0 ; i < _CascadeCount ; i++){
+        float4 sphere = _CascadeCullingSpheres[i];
+        float distanceSqr = DistanceSquared(surfaceWS.position , sphere.xyz);
+        if(distanceSqr < sphere.w){
+            break;
+        }
+    }
+    data.cascadeIndex = i;
+    return data;
+}
 
 struct DirectionalShadowData{
     float strength;
