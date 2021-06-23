@@ -32,8 +32,8 @@ public class PerObjectMaterialProperties : MonoBehaviour
         
         _block.SetColor(BaseColorId,baseColor);
         _block.SetFloat(cutoffId,alphaCutoff);
-        // _block.SetFloat(MetallicID,metallic);
-        // _block.SetFloat(Smoothness,smoothness);
+        _block.SetFloat(MetallicID,metallic);
+        _block.SetFloat(Smoothness,smoothness);
         GetComponent<Renderer>().SetPropertyBlock(_block);
     }
 }

@@ -717,7 +717,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   baseColor: {r: 0.07843135, g: 0.972549, b: 0.972549, a: 1}
   alphaCutoff: 0.5
-  metallic: 0.5
+  metallic: 0.957
   smoothness: 0.5
 --- !u!23 &767263661
 MeshRenderer:

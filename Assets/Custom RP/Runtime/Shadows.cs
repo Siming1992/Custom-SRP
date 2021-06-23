@@ -13,8 +13,11 @@ public class Shadows
     private static int _dirShadowMatricesId = Shader.PropertyToID("_DirectionalShadowMatrices");
     private static int _cascadeCountId = Shader.PropertyToID("_CascadeCount");
     private static int _cascadeCullingSpheresId = Shader.PropertyToID("_CascadeCullingSpheres");
+    private static int _cascadeDataId = Shader.PropertyToID("_CascadeData");
+    private static int _shadowDistanceFadeId = Shader.PropertyToID("_ShadowDistanceFade");
     
     static Vector4[] _cascadeCullingSpheres = new Vector4[maxCascades];
+    static Vector4[] _cascadeData = new Vector4[maxCascades];
     static Matrix4x4[] dirShadowMatrices = new Matrix4x4[maxShadowedDirectionalLightCount * maxCascades];
     
     struct ShadowedDirectionalLight
@@ -86,7 +89,11 @@ public class Shadows
         }
         _buffer.SetGlobalInt(_cascadeCountId,_shadowSettings._directional.cascadeCount);
         _buffer.SetGlobalVectorArray(_cascadeCullingSpheresId,_cascadeCullingSpheres);
+        _buffer.SetGlobalVectorArray(_cascadeDataId,_cascadeData);
         _buffer.SetGlobalMatrixArray(_dirShadowMatricesId,dirShadowMatrices);
+        float f = 1f - _shadowSettings._directional.cascadeFade;
+        _buffer.SetGlobalVector(_shadowDistanceFadeId,
+            new Vector4(1 / _shadowSettings._maxDistance, 1 / _shadowSettings.distanceFade, 1f / (1f - f * f)));
         _buffer.EndSample(_bufferName);
         ExecuteBuffer();
     }
@@ -117,17 +124,25 @@ public class Shadows
             shadowSetting.splitData = splitData;
             if (index == 0)    //我们只需要对第一个光源执行此操作，因为所有光源的级联都是等效的。
             {
-                Vector4 cullingSphere = splitData.cullingSphere;
-                cullingSphere.w *= cullingSphere.w;
-                _cascadeCullingSpheres[i] = cullingSphere;
+                SetCascadeData(i, splitData.cullingSphere, tileSize);
             }
             int tileIndex = tileOffset + i;
             dirShadowMatrices[tileIndex] = ConvertToAtlasMatrix(projectionMatrix * viewMatrix,     //通过将灯光的阴影 投影矩阵和视图矩阵 相乘，可以创建从世界空间到灯光空间的转换矩阵。
                 SetTileViewport(tileIndex,split,tileSize),split);    
             _buffer.SetViewProjectionMatrices(viewMatrix,projectionMatrix);
+            // _buffer.SetGlobalDepthBias(0f,3f);
             ExecuteBuffer();
             _context.DrawShadows(ref shadowSetting);    //DrawShadows仅渲染有ShadowCaster pass的材质
+            // _buffer.SetGlobalDepthBias(0f,0f);
         }
+    }
+
+    void SetCascadeData(int index,Vector4 cullingSphere,float tileSize)
+    {
+        float texelSize = 2f * cullingSphere.w / tileSize;    //通过将剔除球的直径除以图块大小，可以在SetCascadeData中找到纹理像素的大小。将其存储在级联数据向量的Y分量中。
+        cullingSphere.w *= cullingSphere.w;            //我们需要着色器中的球体来检查表面碎片是否位于其中，这可以通过将距球体中心的平方距离与其半径进行比较来实现。因此，让我们存储平方半径，这样就不必在着色器中计算它了。
+        _cascadeCullingSpheres[index] = cullingSphere;
+        _cascadeData[index] = new Vector4(1f / cullingSphere.w,texelSize * 1.4142136f);    //纹理像素是正方形。在最坏的情况下，我们最终不得不沿着正方形的对角线偏移，因此让我们按√2进行缩放。
     }
 
     Vector2 SetTileViewport(int index,int split,float tileSize)

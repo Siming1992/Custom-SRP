@@ -14,22 +14,37 @@ SAMPLER_CMP(SHADOW_SAMPLER);
 CBUFFER_START(_CustomShadow)
     int _CascadeCount;
     float4 _CascadeCullingSpheres[MAX_CASCADE_COUNT];
+    float4 _CascadeData[MAX_CASCADE_COUNT];
     float4x4 _DirectionalShadowMatrices[MAX_SHADOWED_DIRECTIONAL_LIGHT_COUNT * MAX_CASCADE_COUNT];  //如果修改数组长度，Unity将抱怨着色器的数组大小已更改，但无法使用新的大小。这是因为一旦着色器声明了固定数组，就无法在同一会话期间在GPU上更改其大小。我们需要重新启动Unity才能对其进行初始化。
+    float4 _ShadowDistanceFade;    
 CBUFFER_END
 
 struct ShadowData{
     int cascadeIndex;
+    float strength;
 };
+
+float FadedShadowStrength(float distance , float scale , float fade){
+    return saturate((1.0 - distance * scale) * fade);
+}
 
 ShadowData GetShadowData(Surface surfaceWS){
     ShadowData data;
+    data.strength = FadedShadowStrength(surfaceWS.depth , _ShadowDistanceFade.x , _ShadowDistanceFade.y);
+    
     int i;
     for(i = 0 ; i < _CascadeCount ; i++){
         float4 sphere = _CascadeCullingSpheres[i];
         float distanceSqr = DistanceSquared(surfaceWS.position , sphere.xyz);
         if(distanceSqr < sphere.w){
+            if(i == _CascadeCount - 1){
+                data.strength *= FadedShadowStrength(distanceSqr,_CascadeData[i].x,_ShadowDistanceFade.z);
+            }
             break;
         }
+    }
+    if(i == _CascadeCount){
+        data.strength = 0.0;
     }
     data.cascadeIndex = i;
     return data;
@@ -47,13 +62,14 @@ float SampleDirectionalShadowAtlas (float3 positionSTS) {
 	);
 }
 
-float GetDirectionalShadowAttenuation(DirectionalShadowData directional , Surface surfaceWS){
+float GetDirectionalShadowAttenuation(DirectionalShadowData directional ,ShadowData global, Surface surfaceWS){
     if(directional.strength <= 0){
         return 1.0;
     }
+    float3 normalBias = surfaceWS.normal * _CascadeData[global.cascadeIndex].y;
     float3 positionSTS = mul(
         _DirectionalShadowMatrices[directional.tileIndex],
-        float4(surfaceWS.position,1.0)
+        float4(surfaceWS.position + normalBias ,1.0)
     ).xyz;
     float shadow = SampleDirectionalShadowAtlas(positionSTS);
     return lerp(1.0,shadow,directional.strength);

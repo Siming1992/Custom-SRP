@@ -77,6 +77,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     surface.position = input.postionWS;
     surface.normal = normalize(input.normalWS);
     surface.viewDirection = normalize(_WorldSpaceCameraPos - input.postionWS); 
+    surface.depth = -TransformWorldToView(input.postionWS).z;   //通过TransformWorldToView从世界空间转换为视图空间，并取负Z坐标,由于此转换只是相对于世界空间的旋转和偏移，因此视图空间和世界空间的深度相同。
     surface.color = base.rgb;
     surface.alpha = base.a;
     surface.metallic = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_Metallic);
