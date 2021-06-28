@@ -9,10 +9,24 @@ public class Shadows
 
     private int _ShadowDirectionalLightCount = 0;
 
+    private static string[] _directionalFilterKeywords =
+    {
+        "_DIRECTIONAL_PCF3",
+        "_DIRECTIONAL_PCF5",
+        "_DIRECTIONAL_PCF7",
+    };
+
+    private static string[] _cascadeBlendKeywords =
+    {
+        "_CASCADE_BLEND_SOFT",
+        "_CASCADE_BLEND_DITHER"
+    };
+
     private static int _dirShadowAtlasId = Shader.PropertyToID("_DirectionalShadowAtlas");
     private static int _dirShadowMatricesId = Shader.PropertyToID("_DirectionalShadowMatrices");
     private static int _cascadeCountId = Shader.PropertyToID("_CascadeCount");
     private static int _cascadeCullingSpheresId = Shader.PropertyToID("_CascadeCullingSpheres");
+    private static int _shadowAtlasSizeID = Shader.PropertyToID("_ShadowAtlasSize");
     private static int _cascadeDataId = Shader.PropertyToID("_CascadeData");
     private static int _shadowDistanceFadeId = Shader.PropertyToID("_ShadowDistanceFade");
     
@@ -23,6 +37,8 @@ public class Shadows
     struct ShadowedDirectionalLight
     {
         public int visibleLightIndex;
+        public float slopeScaleBias;
+        public float nearPlaneOffset;
     }
     
     ShadowedDirectionalLight[] _shadowedDirectionalLights = new ShadowedDirectionalLight[maxShadowedDirectionalLightCount];
@@ -44,7 +60,7 @@ public class Shadows
         _ShadowDirectionalLightCount = 0;
     }
 
-    public Vector2 ReserveDirectionalShadows(Light light,int visibleLightIndex)
+    public Vector3 ReserveDirectionalShadows(Light light,int visibleLightIndex)
     {
         if (_ShadowDirectionalLightCount < maxShadowedDirectionalLightCount                 //如果还有空间，存储灯光的课件索引并增加计数
             && light.shadows != LightShadows.None && light.shadowStrength > 0f              //阴影只能保留给有阴影的灯光，如果灯光的阴影模式设置为None或者强度为零，则忽略
@@ -53,13 +69,15 @@ public class Shadows
             _shadowedDirectionalLights[_ShadowDirectionalLightCount] 
                 = new ShadowedDirectionalLight()
                 {
-                    visibleLightIndex = visibleLightIndex
+                    visibleLightIndex = visibleLightIndex,
+                    slopeScaleBias = light.shadowBias,            //请记住，我们对这些灯光设置的解释与其原始目的有所不同。它们曾经是剪辑空间深度偏差和世界空间收缩法线偏差。因此，当你创建新光源时，除非调整偏差，否则你会得到严重的Peter-Panning。
+                    nearPlaneOffset = light.shadowNearPlane
                 };
-            return new Vector2(light.shadowStrength,
-                _shadowSettings._directional.cascadeCount * _ShadowDirectionalLightCount++
+            return new Vector3(light.shadowStrength,
+                _shadowSettings._directional.cascadeCount * _ShadowDirectionalLightCount++,light.shadowBias
                 );
         }
-        return Vector2.zero;
+        return Vector3.zero;
     }
 
     public void Render()
@@ -94,6 +112,9 @@ public class Shadows
         float f = 1f - _shadowSettings._directional.cascadeFade;
         _buffer.SetGlobalVector(_shadowDistanceFadeId,
             new Vector4(1 / _shadowSettings._maxDistance, 1 / _shadowSettings.distanceFade, 1f / (1f - f * f)));
+        SetKeywords(_directionalFilterKeywords, (int) _shadowSettings._directional.filter - 1);
+        SetKeywords(_cascadeBlendKeywords, (int) _shadowSettings._directional.cascadeBlendMode - 1);
+        _buffer.SetGlobalVector(_shadowAtlasSizeID, new Vector4(atlasSize, 1f / atlasSize));
         _buffer.EndSample(_bufferName);
         ExecuteBuffer();
     }
@@ -114,13 +135,15 @@ public class Shadows
 //第一个参数是可见光指数。接下来的三个参数是两个整数和一个Vector3，它们控制阴影级联。然后是纹理尺寸，我们需要使用平铺尺寸。第六个参数是靠近平面的阴影，我们现在将其忽略并将其设置为零。
 //以上这些是输入参数，其余三个是输出参数。首先是视图矩阵，然后是投影矩阵，最后一个参数是ShadowSplitData结构。
 
+        float cullingFactor = Mathf.Max(0f, 0.8f - _shadowSettings._directional.cascadeFade);
         for (int i = 0; i < cascadeCount; i++)
         {
             _cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(
-                light.visibleLightIndex,i,cascadeCount,ratios, tileSize,0f,
+                light.visibleLightIndex,i,cascadeCount,ratios, tileSize,light.nearPlaneOffset,
                 out Matrix4x4 viewMatrix,out Matrix4x4 projectionMatrix,
                 out ShadowSplitData splitData
             );
+            splitData.shadowCascadeBlendCullingFactor = cullingFactor;
             shadowSetting.splitData = splitData;
             if (index == 0)    //我们只需要对第一个光源执行此操作，因为所有光源的级联都是等效的。
             {
@@ -130,19 +153,36 @@ public class Shadows
             dirShadowMatrices[tileIndex] = ConvertToAtlasMatrix(projectionMatrix * viewMatrix,     //通过将灯光的阴影 投影矩阵和视图矩阵 相乘，可以创建从世界空间到灯光空间的转换矩阵。
                 SetTileViewport(tileIndex,split,tileSize),split);    
             _buffer.SetViewProjectionMatrices(viewMatrix,projectionMatrix);
-            // _buffer.SetGlobalDepthBias(0f,3f);
+            _buffer.SetGlobalDepthBias(0f,light.slopeScaleBias);
             ExecuteBuffer();
             _context.DrawShadows(ref shadowSetting);    //DrawShadows仅渲染有ShadowCaster pass的材质
-            // _buffer.SetGlobalDepthBias(0f,0f);
+            _buffer.SetGlobalDepthBias(0f,0f);
+        }
+    }
+
+    void SetKeywords(string[] keywords ,int enabledIndex)
+    {
+        for (int i = 0; i < keywords.Length; i++)
+        {
+            if (i == enabledIndex)
+            {
+                _buffer.EnableShaderKeyword(keywords[i]);
+            }
+            else
+            {
+                _buffer.DisableShaderKeyword(keywords[i]);
+            }
         }
     }
 
     void SetCascadeData(int index,Vector4 cullingSphere,float tileSize)
     {
         float texelSize = 2f * cullingSphere.w / tileSize;    //通过将剔除球的直径除以图块大小，可以在SetCascadeData中找到纹理像素的大小。将其存储在级联数据向量的Y分量中。
+        float filterSize = texelSize * ((float)_shadowSettings._directional.filter + 1);    //增加过滤器大小会使阴影更平滑，但也会导致粉刺再次出现。我们必须增加正常偏差以匹配过滤器大小。我们可以通过将 texel 大小乘以 1 加上过滤器模式来自动执行此操作
+        cullingSphere.w -= filterSize;    //增加采样区域也意味着我们可以在级联的剔除范围之外进行采样。我们可以通过在平方之前将球体的半径减小过滤器大小来避免这种情况。
         cullingSphere.w *= cullingSphere.w;            //我们需要着色器中的球体来检查表面碎片是否位于其中，这可以通过将距球体中心的平方距离与其半径进行比较来实现。因此，让我们存储平方半径，这样就不必在着色器中计算它了。
         _cascadeCullingSpheres[index] = cullingSphere;
-        _cascadeData[index] = new Vector4(1f / cullingSphere.w,texelSize * 1.4142136f);    //纹理像素是正方形。在最坏的情况下，我们最终不得不沿着正方形的对角线偏移，因此让我们按√2进行缩放。
+        _cascadeData[index] = new Vector4(1f / cullingSphere.w,filterSize * 1.4142136f);    //纹理像素是正方形。在最坏的情况下，我们最终不得不沿着正方形的对角线偏移，因此让我们按√2进行缩放。
     }
 
     Vector2 SetTileViewport(int index,int split,float tileSize)
