@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Clip
   m_Shader: {fileID: 4800000, guid: c4b0d7c9cdfcb420eba0b8a9900efd4c, type: 3}
-  m_ShaderKeywords: _CLIPPING
+  m_ShaderKeywords: _CLIPPING _SHADOWS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
