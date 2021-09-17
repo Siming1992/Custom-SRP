@@ -11,6 +11,9 @@ Shader "Costom RP/Lit"
         _Metallic("Metallic",Range(0,1)) = 0
         _Smoothness("Smoothness",Range(0,1)) = 0.5
         
+        [NoScaleOffset] _EmissionMap("Emission" , 2D) = "white"{}
+        [HDR] _EmissionColor("Emission",Color) = (0.0,0.0,0.0,0.0)
+        
         [Toggle(_PREMULTIPLY_ALPHA)] _PremulAlpha ("Premultiply Alpha",Float) = 0
         
         //默认值表示我们使用不透明混合配置，源设置为1，表示完全添加，而目标设置为0，表示忽略
@@ -18,9 +21,17 @@ Shader "Costom RP/Lit"
         [Enum(UnityEngine.Rendering.BlendMode)]_DstBlend("Dst Blend",Float) = 0
         
         [Enum(Off,0,On,1)] _ZWrite("Z Write",Float) = 1
+
+		[HideInInspector] _MainTex("Texture for Lightmap", 2D) = "white" {}
+		[HideInInspector] _Color("Color for Lightmap", Color) = (0.5, 0.5, 0.5, 1.0)
     }
     
     SubShader{
+		HLSLINCLUDE
+		#include "../ShaderLibrary/Common.hlsl"
+		#include "LitInput.hlsl"
+		ENDHLSL
+
         Pass{
             Tags{
                 "LightMode" = "CustomLit"
@@ -33,6 +44,7 @@ Shader "Costom RP/Lit"
             HLSLPROGRAM
             #pragma target 3.5
             //pragma 一词来自希腊语，指的是一种行动，或一些需要做的事情。
+            #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_instancing
             #pragma shader_feature _CLIPPING
 			#pragma shader_feature _RECEIVE_SHADOWS
@@ -59,6 +71,21 @@ Shader "Costom RP/Lit"
             #pragma vertex ShadowCasterPassVertex
             #pragma fragment ShadowCasterPassFragment            
             #include "ShadowCasterPass.hlsl"
+            ENDHLSL
+        }
+        
+        Pass{
+            Tags{
+                "LightMode" = "Meta"
+            }
+                
+            Cull Off
+            
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex MetaPassVertex
+            #pragma fragment MetaPassFragment
+            #include "MetaPass.hlsl"
             ENDHLSL
         }
     }

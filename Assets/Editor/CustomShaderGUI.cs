@@ -36,6 +36,8 @@ public class CustomShaderGUI : ShaderGUI
         _materials = materialEditor.targets;
         _properties = properties;
         
+		BakedEmission();
+        
         EditorGUILayout.Space();
         _showPresets = EditorGUILayout.Foldout(_showPresets, "Presets", true);
         if (_showPresets)
@@ -47,9 +49,40 @@ public class CustomShaderGUI : ShaderGUI
         }
         if (EditorGUI.EndChangeCheck()) {
             SetShadowCasterPass();
+            CopyLightMappingProperties();
         }
     }
 
+    void CopyLightMappingProperties()
+    {
+        MaterialProperty mainTex = FindProperty("_MainTex", _properties, false);
+        MaterialProperty baseMap = FindProperty("_BaseMap", _properties, false);
+        if (mainTex != null && baseMap != null)
+        {
+            mainTex.textureValue = baseMap.textureValue;
+            mainTex.textureScaleAndOffset = baseMap.textureScaleAndOffset;
+        }
+        MaterialProperty color = FindProperty("_Color",_properties,false);
+        MaterialProperty baseColor = FindProperty("_BaseColor",_properties,false);
+        if (color != null && baseColor != null)
+        {
+            color.colorValue = baseColor.colorValue;
+        }
+    }
+
+    void BakedEmission () {
+        EditorGUI.BeginChangeCheck();
+        _materialEditor.LightmapEmissionProperty();        //仅影响自发光的烘焙
+        //Unity会积极尝试避免在烘焙时使用单独的emission通道。如果材质的emission 设置为零的话，还会直接将其忽略。
+        //但是，它没有限制单个对象的材质属性。通过更改emission mode，被选定的材质的globalIlluminationFlags属性的默MaterialGlobalIlluminationFlags.EmissiveIsBlack标志，可以覆盖该结果。这意味着你仅应在需要时才启用“Baked ”选项。
+        if (EditorGUI.EndChangeCheck()) {
+            foreach (Material m in _materialEditor.targets) {
+                m.globalIlluminationFlags &=
+                    ~MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+        }
+    }
+    
     void SetShadowCasterPass()
     {
         MaterialProperty shadows = FindProperty("_Shadows", _properties, false);

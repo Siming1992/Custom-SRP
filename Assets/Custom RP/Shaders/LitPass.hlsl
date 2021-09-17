@@ -2,33 +2,22 @@
 #define CUSTOM_LIT_PASS_INCLUDED
 
 //HLSL并没有类的概念。除了代码块的局部范围外，只有一个全局范围
-#include "../ShaderLibrary/Common.hlsl"
+//#include "../ShaderLibrary/Common.hlsl"
 #include "../ShaderLibrary/Surface.hlsl"
 #include "../ShaderLibrary/Shadows.hlsl"
 #include "../ShaderLibrary/Light.hlsl"
 #include "../ShaderLibrary/BRDF.hlsl"
+#include "../ShaderLibrary/GI.hlsl"
 #include "../ShaderLibrary/Lighting.hlsl"
-
-//纹理需要上传到GPU的内存里，这一步Unity会为我们做。着色器需要一个相关纹理的句柄，我们可以像定义一个uniform 值那样定义它，只是我们使用名为TEXTURE2D的宏参数。
-TEXTURE2D(_BaseMap);
-//我们还需要为纹理定义一个采样器状态，考虑到wrap 和filter的模式，该状态控制着色器应如何采样。通过SAMPLER宏实现，例如TEXTURE2D，但在名称前添加了sampler。
-SAMPLER(sampler_BaseMap);
 
 //#define UNITY_DEFINE_INSTANCED_PROP(type, var)  type var; 只是定义
 //#define UNITY_ACCESS_INSTANCED_PROP(arr, var)   var
-
-UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
-    UNITY_DEFINE_INSTANCED_PROP(float4,_BaseMap_ST)
-    UNITY_DEFINE_INSTANCED_PROP(float4,_BaseColor)
-    UNITY_DEFINE_INSTANCED_PROP(float,_Cutoff)
-    UNITY_DEFINE_INSTANCED_PROP(float,_Metallic)
-    UNITY_DEFINE_INSTANCED_PROP(float,_Smoothness)
-UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
 
 struct Attributes{
     float3 positionCS : POSITION;
     float3 normalOS : NORMAL;
     float2 baseUV : TEXCOORD0;
+    GI_ATTRIBUTE_DATA
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -38,6 +27,7 @@ struct Varying{
     float3 normalWS : VAR_NORMAL;
     //这里我们不需要添加特殊含义，只是传递的数据并不需要让GPU关注。但是，基于语法，我们仍然必须赋予它一些含义。所以可以给它添加任何 unused 的标识符，这里就简单地使用VAR_BASE_UV。
     float2 baseUV : VAR_BASE_UV;
+    GI_VARYINGS_DATA
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -51,23 +41,21 @@ Varying LitPassVertex(Attributes input){
     Varying output;
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input,output);
+    TRANSFER_GI_DATA(input,output);
     output.positionWS = TransformObjectToWorld(input.positionCS);
     output.positionCS = TransformWorldToHClip(output.positionWS);
     //使用SpaceTransforms中的TransformObjectToWorldNormal在LitPassVertex中将法线转换到世界空间。
     output.normalWS = TransformObjectToWorldNormal(input.normalOS);
     
-    float4 baseST = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_BaseMap_ST);
-    output.baseUV = input.baseUV * baseST.xy + baseST.zw;
+    output.baseUV = TransformBaseUV(input.baseUV);
     return output;
 }
 
 float4 LitPassFragment(Varying input):SV_TARGET{
     UNITY_SETUP_INSTANCE_ID(input);
-    float4 basemap = SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,input.baseUV);
-    float4 baseColor = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_BaseColor);
-    float4 base = basemap * baseColor;
+    float4 base = GetBase(input.baseUV);
     #if defined(_CLIPPING)
-        clip(base.a - UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_Cutoff));
+        clip(base.a - GetCutoff(input.baseUV));
     #endif
     //尽管法线向量在顶点程序中为单位长，但跨三角形的线性插值会影响其长度。我们可以通过渲染一个和向量长度之间的差（放大十倍以使其更明显）来可视化该错误。
     //base.rgb = abs(length(input.normalWS) - 1.0) * 10;
@@ -80,8 +68,8 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     surface.depth = -TransformWorldToView(input.positionWS).z;   //通过TransformWorldToView从世界空间转换为视图空间，并取负Z坐标,由于此转换只是相对于世界空间的旋转和偏移，因此视图空间和世界空间的深度相同。
     surface.color = base.rgb;
     surface.alpha = base.a;
-    surface.metallic = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_Metallic);
-    surface.smoothness = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,_Smoothness);
+    surface.metallic = GetMetallic(input.baseUV);
+    surface.smoothness = GetSmoothness(input.baseUV);
     surface.dither = InterleavedGradientNoise(input.positionCS.xy, 0);  //该函数在给定屏幕空间XY位置的情况下生成旋转的平铺抖动模式。在片段函数中，其等于剪辑空间的XY位置。它还需要使用第二个参数对其进行动画处理，我们不需要该参数，并且可以将其保留为零。
 
     #if defined(_PREMULTIPLY_ALPHA)
@@ -90,7 +78,9 @@ float4 LitPassFragment(Varying input):SV_TARGET{
         BRDF brdf = GetBRDF(surface);
     #endif
     
-    float3 color = GetLighting(surface,brdf);
+    GI gi = GetGI(GI_FRAGMENT_DATA(input),surface);
+    float3 color = GetLighting(surface,brdf,gi);
+    color += GetEmission(input.baseUV);
     
     return float4(color,surface.alpha);
 }

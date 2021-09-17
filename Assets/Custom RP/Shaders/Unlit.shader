@@ -2,7 +2,7 @@ Shader "Costom RP/Unlit"
 {
     Properties{
         _BaseMap("Texture",2D) = "white"{}
-        _BaseColor("Color",Color) = (1.0,1.0,1.0,1.0)
+        [HDR] _BaseColor("Color",Color) = (1.0,1.0,1.0,1.0)
         _Cutoff("Alpha Cutoff",Range(0,1)) = 0.5
         [Toggle(_CLIPPING)] _Clipping ("Alpha Clipping",Float) = 0
         //默认值表示我们使用不透明混合配置，源设置为1，表示完全添加，而目标设置为0，表示忽略
@@ -13,6 +13,11 @@ Shader "Costom RP/Unlit"
     }
     
     SubShader{
+		HLSLINCLUDE
+		#include "../ShaderLibrary/Common.hlsl"
+		#include "LitInput.hlsl"
+		ENDHLSL
+		
         Pass{
             //想使用着色器属性，可以通过将其放在方括号内来访问它们
             Blend [_SrcBlend] [_DstBlend]

@@ -9,9 +9,13 @@ public class PerObjectMaterialProperties : MonoBehaviour
     private static int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static int cutoffId = Shader.PropertyToID("_Cutoff");
     private static int MetallicID = Shader.PropertyToID("_Metallic");
-    private static int Smoothness = Shader.PropertyToID("_Smoothness");
+    private static int SmoothnessID = Shader.PropertyToID("_Smoothness");
+    private static int emissionColorID = Shader.PropertyToID("_EmissionColor");
 
     [SerializeField] private Color baseColor = Color.white;
+
+    [SerializeField, ColorUsage(false, true)]
+    private Color emissionColor = Color.black;
 
     private static MaterialPropertyBlock _block;
 
@@ -33,7 +37,8 @@ public class PerObjectMaterialProperties : MonoBehaviour
         _block.SetColor(BaseColorId,baseColor);
         _block.SetFloat(cutoffId,alphaCutoff);
         _block.SetFloat(MetallicID,metallic);
-        _block.SetFloat(Smoothness,smoothness);
+        _block.SetFloat(SmoothnessID,smoothness);
+        _block.SetColor(emissionColorID,emissionColor);
         GetComponent<Renderer>().SetPropertyBlock(_block);
     }
 }
