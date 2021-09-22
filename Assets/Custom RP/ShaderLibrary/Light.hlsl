@@ -22,9 +22,10 @@ int GetDirectionalLightCount(){
 
 DirectionalShadowData GetDirectionalShadowData(int lightIndex,ShadowData shadowData){
     DirectionalShadowData data;
-    data.strength =  _DirectionalLightShadowData[lightIndex].x * shadowData.strength;     //_DirectionalLightShadowData在Shadows.cs的ReserveDirectionalShadows方法中赋值
+    data.strength =  _DirectionalLightShadowData[lightIndex].x ;//* shadowData.strength;     //_DirectionalLightShadowData在Shadows.cs的ReserveDirectionalShadows方法中赋值
     data.tileIndex = _DirectionalLightShadowData[lightIndex].y + shadowData.cascadeIndex;
     data.normalBias = _DirectionalLightShadowData[lightIndex].z;
+    data.shadowMaskChannel = _DirectionalLightShadowData[lightIndex].w;
     return data;
 }
 

@@ -33,6 +33,14 @@ public class Shadows
     static Vector4[] _cascadeCullingSpheres = new Vector4[maxCascades];
     static Vector4[] _cascadeData = new Vector4[maxCascades];
     static Matrix4x4[] dirShadowMatrices = new Matrix4x4[maxShadowedDirectionalLightCount * maxCascades];
+
+    private static string[] _shadowMaskKeywords =
+    {
+        "_SHADOW_MASK_ALWAYS",
+        "_SHADOW_MASK_DISTANCE",
+    };
+
+    private bool useShadowMask;
     
     struct ShadowedDirectionalLight
     {
@@ -58,14 +66,30 @@ public class Shadows
         _cullingResults = cullingResults;
         _shadowSettings = shadowSettings;
         _ShadowDirectionalLightCount = 0;
+        
+        useShadowMask = false;
     }
 
-    public Vector3 ReserveDirectionalShadows(Light light,int visibleLightIndex)
+    public Vector4 ReserveDirectionalShadows(Light light,int visibleLightIndex)
     {
         if (_ShadowDirectionalLightCount < maxShadowedDirectionalLightCount                 //如果还有空间，存储灯光的课件索引并增加计数
             && light.shadows != LightShadows.None && light.shadowStrength > 0f              //阴影只能保留给有阴影的灯光，如果灯光的阴影模式设置为None或者强度为零，则忽略
-            && _cullingResults.GetShadowCasterBounds(visibleLightIndex,out Bounds b))       //除了以上两点，可见光最终可能不会影响任何投射阴影的对象，这可能是因为他们没有配置，或者是因为光线仅影响了超出最大阴影距离的对象，我们可以通过在剔除结果上调用GetShadowCasterBounds以获得可见光索引来进行检查。它具有边界的第二个输出参数（我们不需要），并返回边界是否有效。如果不是，则没有阴影可渲染，因此应将其忽略。
+            /* && _cullingResults.GetShadowCasterBounds(visibleLightIndex,out Bounds b) */)       //除了以上两点，可见光最终可能不会影响任何投射阴影的对象，这可能是因为他们没有配置，或者是因为光线仅影响了超出最大阴影距离的对象，我们可以通过在剔除结果上调用GetShadowCasterBounds以获得可见光索引来进行检查。它具有边界的第二个输出参数（我们不需要），并返回边界是否有效。如果不是，则没有阴影可渲染，因此应将其忽略。
         {
+            float maskChannel = -1;
+            LightBakingOutput lightBaking = light.bakingOutput;
+            //如果遇到其光照贴图烘焙类型设置为“mixed ”且其混合照明模式设置为“shadow mask”的光源，则说明我们正在使用阴影遮罩。
+            if (lightBaking.lightmapBakeType == LightmapBakeType.Mixed && lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask)
+            {
+                useShadowMask = true;
+                maskChannel = lightBaking.occlusionMaskChannel;
+            }
+
+            if (!_cullingResults.GetShadowCasterBounds(visibleLightIndex,out Bounds b))
+            {
+                return new Vector4(-light.shadowStrength,0f,0f,maskChannel);
+            }
+            
             _shadowedDirectionalLights[_ShadowDirectionalLightCount] 
                 = new ShadowedDirectionalLight()
                 {
@@ -73,11 +97,11 @@ public class Shadows
                     slopeScaleBias = light.shadowBias,            //请记住，我们对这些灯光设置的解释与其原始目的有所不同。它们曾经是剪辑空间深度偏差和世界空间收缩法线偏差。因此，当你创建新光源时，除非调整偏差，否则你会得到严重的Peter-Panning。
                     nearPlaneOffset = light.shadowNearPlane
                 };
-            return new Vector3(light.shadowStrength,
-                _shadowSettings._directional.cascadeCount * _ShadowDirectionalLightCount++,light.shadowBias
+            return new Vector4(light.shadowStrength,
+                _shadowSettings._directional.cascadeCount * _ShadowDirectionalLightCount++,light.shadowBias,maskChannel
                 );
         }
-        return Vector3.zero;
+        return new Vector4(0f,0f,0f,-1f);
     }
 
     public void Render()
@@ -86,6 +110,11 @@ public class Shadows
         {
             RenderDirectionalShadows();
         }
+        
+        _buffer.BeginSample(_bufferName);
+        SetKeywords(_shadowMaskKeywords, useShadowMask ? QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask ? 0 : 1 : -1);
+        _buffer.EndSample(_bufferName);
+        ExecuteBuffer();
     }
 
     void RenderDirectionalShadows()

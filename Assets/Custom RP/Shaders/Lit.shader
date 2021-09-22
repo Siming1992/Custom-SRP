@@ -45,6 +45,7 @@ Shader "Costom RP/Lit"
             #pragma target 3.5
             //pragma 一词来自希腊语，指的是一种行动，或一些需要做的事情。
             #pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ _SHADOW_MASK_ALWAYS _SHADOW_MASK_DISTANCE
             #pragma multi_compile_instancing
             #pragma shader_feature _CLIPPING
 			#pragma shader_feature _RECEIVE_SHADOWS

@@ -94,8 +94,10 @@ public partial class CameraRenderer
         {
             enableDynamicBatching = useDynamicBatching,
             enableInstancing = useGPUInstancing,
-            perObjectData = PerObjectData.Lightmaps | PerObjectData.LightProbe|
-            PerObjectData.LightProbeProxyVolume
+            perObjectData = PerObjectData.Lightmaps | PerObjectData.ShadowMask | 
+                            PerObjectData.LightProbe| PerObjectData.LightProbeProxyVolume |
+                            PerObjectData.OcclusionProbe |    //Unity还将ShadowMask数据烘焙到光探针中，我们将其称为遮挡探针（Occlusion Probes）
+                            PerObjectData.OcclusionProbeProxyVolume
         };
         drawingSettings.SetShaderPassName(1, _litShaderTagId);
         
