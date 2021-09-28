@@ -53,6 +53,7 @@ Varying LitPassVertex(Attributes input){
 
 float4 LitPassFragment(Varying input):SV_TARGET{
     UNITY_SETUP_INSTANCE_ID(input);
+    ClipLOD(input.positionCS.xy,unity_LODFade.x);   
     float4 base = GetBase(input.baseUV);
     #if defined(_CLIPPING)
         clip(base.a - GetCutoff(input.baseUV));
@@ -70,6 +71,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     surface.alpha = base.a;
     surface.metallic = GetMetallic(input.baseUV);
     surface.smoothness = GetSmoothness(input.baseUV);
+    surface.fresnelStrength = GetFresnel(input.baseUV);
     surface.dither = InterleavedGradientNoise(input.positionCS.xy, 0);  //该函数在给定屏幕空间XY位置的情况下生成旋转的平铺抖动模式。在片段函数中，其等于剪辑空间的XY位置。它还需要使用第二个参数对其进行动画处理，我们不需要该参数，并且可以将其保留为零。
 
     #if defined(_PREMULTIPLY_ALPHA)
@@ -78,7 +80,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
         BRDF brdf = GetBRDF(surface);
     #endif
     
-    GI gi = GetGI(GI_FRAGMENT_DATA(input),surface);
+    GI gi = GetGI(GI_FRAGMENT_DATA(input),surface,brdf);        //GI_FRAGMENT_DATA(input) 在GI.hlsl中定义为 input.lightMapUV
     float3 color = GetLighting(surface,brdf,gi);
     color += GetEmission(input.baseUV);
     

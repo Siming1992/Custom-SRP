@@ -10,6 +10,7 @@ Shader "Costom RP/Lit"
         
         _Metallic("Metallic",Range(0,1)) = 0
         _Smoothness("Smoothness",Range(0,1)) = 0.5
+        _Fresnel("Fresnel",Range(0,1)) = 1
         
         [NoScaleOffset] _EmissionMap("Emission" , 2D) = "white"{}
         [HDR] _EmissionColor("Emission",Color) = (0.0,0.0,0.0,0.0)
@@ -45,6 +46,7 @@ Shader "Costom RP/Lit"
             #pragma target 3.5
             //pragma 一词来自希腊语，指的是一种行动，或一些需要做的事情。
             #pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ LOD_FADE_CROSSFADE
             #pragma multi_compile _ _SHADOW_MASK_ALWAYS _SHADOW_MASK_DISTANCE
             #pragma multi_compile_instancing
             #pragma shader_feature _CLIPPING
@@ -66,6 +68,7 @@ Shader "Costom RP/Lit"
             ColorMask 0
             
             HLSLPROGRAM
+            #pragma multi_compile _ LOD_FADE_CROSSFADE
             #pragma shader_feature _ _SHADOWS_CLIP _SHADOWS_DITHER
             #pragma multi_compile_instancing
             

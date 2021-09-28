@@ -72,7 +72,7 @@ public class CustomShaderGUI : ShaderGUI
 
     void BakedEmission () {
         EditorGUI.BeginChangeCheck();
-        _materialEditor.LightmapEmissionProperty();        //仅影响自发光的烘焙
+        _materialEditor.LightmapEmissionProperty();        //这将显示“Global Illumination”的下拉菜单，该菜单最初设置为“None”。尽管它的名字看起来高级，但其实它仅影响自发光的烘焙。将其更改为“Baked ”告诉灯光映射器给自发光运行单独的通道。还有一个“Realtime ”选项，但实际上已弃用
         //Unity会积极尝试避免在烘焙时使用单独的emission通道。如果材质的emission 设置为零的话，还会直接将其忽略。
         //但是，它没有限制单个对象的材质属性。通过更改emission mode，被选定的材质的globalIlluminationFlags属性的默MaterialGlobalIlluminationFlags.EmissiveIsBlack标志，可以覆盖该结果。这意味着你仅应在需要时才启用“Baked ”选项。
         if (EditorGUI.EndChangeCheck()) {

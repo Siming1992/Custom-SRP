@@ -2,12 +2,16 @@
 #define CUSTOM_GI_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
 
 TEXTURE2D(unity_Lightmap);      //光照贴图纹理叫 unity_Lightmap，包含在Core RP Library中的EnityLighting.hlsl里
 SAMPLER(samplerunity_Lightmap);
 
 TEXTURE2D(unity_ShadowMask);
 SAMPLER(samplerunity_ShadowMask);
+
+TEXTURECUBE(unity_SpecCube0);
+SAMPLER(samplerunity_SpecCube0);
 
 //探针代理集数据以3D float格式的纹理存储，称为unity_ProbeVolumeSH。
 TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
@@ -30,6 +34,7 @@ SAMPLER(samplerunity_ProbeVolumeSH);
 
 struct GI{
     float3 diffuse;
+    float3 specular;
     ShadowMask shadowMask;
 };
 
@@ -97,9 +102,19 @@ float4 SampleBakeShadows(float2 lightMapUV,Surface surfaceWS){
     #endif
 }
 
-GI GetGI(float2 lightMapUV,Surface surfaceWS){
+float3 SampleEnvironment(Surface surfaceWS , BRDF brdf){
+    float3 uvw = reflect(-surfaceWS.viewDirection,surfaceWS.normal);        //立方体贴图的采样是通过一个方向完成的，这里是从相机到表面反射的表面的视图方向。
+    float mip = PerceptualRoughnessToMipmapLevel(brdf.perceptualRoughness);     //PerceptualRoughnessToMipmapLevel被定义在ImageBasedLighting.hlsl
+    float4 environment = SAMPLE_TEXTURECUBE_LOD(
+        unity_SpecCube0,samplerunity_SpecCube0,uvw,mip
+    );
+    return DecodeHDREnvironment(environment,unity_SpecCube0_HDR);
+}
+
+GI GetGI(float2 lightMapUV,Surface surfaceWS , BRDF brdf){
     GI gi;
     gi.diffuse = SampleLightMap(lightMapUV) + SampleLightProbe(surfaceWS);
+    gi.specular = SampleEnvironment(surfaceWS,brdf);
     gi.shadowMask.always = false;
     gi.shadowMask.distance = false;
     gi.shadowMask.shadows = 1.0;
