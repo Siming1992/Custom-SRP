@@ -21,6 +21,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
 float Square (float x) {
 	return x * x;
@@ -35,6 +36,23 @@ void ClipLOD(float2 positionCS,float fade){
         float dither = InterleavedGradientNoise(positionCS.xy,0);
         clip(fade + (fade < 0.0 ? dither : -dither));
     #endif
+}
+
+//DXT5nm是什么意思？
+//DXT5（也称为BC3）是一种压缩格式，将纹理划分为4×4像素的块。每个块都有两种颜色近似，每个像素可进行插值。用于颜色的位数在每个通道中有所不同。R和B分别获得5位，G获得6位，而A获得8位。这就是X坐标移至A通道的原因之一。另一个原因是RGB通道获得一个查找表，而A通道获得其自己的查找表。这样可以使X和Y分量保持隔离。
+//当DXT5用于存储法线向量时，称为DXT5nm。但是，当使用高压缩质量时，Unity更喜欢BC7压缩。此模式的工作原理相同，但每个通道的位数可能会有所不同。因此，不需要移动X通道。最终纹理的结局更大，因为两个通道都使用了更多位，从而提高了纹理质量。
+float3 DecodeNormal(float4 sample,float scale){
+    #if defined(UNITY_NO_DXT5nm)
+        return UnpackNormalRGB(sample,scale)
+    #else
+        return UnpackNormalmapRGorAG(sample,scale);
+    #endif
+}
+
+float3 NormalTangentToWorld(float3 normalTS,float3 normalWS,float4 tangentWS){
+    float3x3 tangentToWorld =
+        CreateTangentToWorld(normalWS,tangentWS.xyz,tangentWS.w);
+    return TransformTangentToWorld(normalTS,tangentToWorld); 
 }
 
 #endif
