@@ -14,7 +14,7 @@ SAMPLER(sampler_DetailMap);
 
 UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
     UNITY_DEFINE_INSTANCED_PROP(float4,_BaseMap_ST)
-    UNITY_DEFINE_INSTANCED_PROP(float4,_DetailMap_ST);
+    UNITY_DEFINE_INSTANCED_PROP(float4,_DetailMap_ST)
     UNITY_DEFINE_INSTANCED_PROP(float4,_BaseColor)
     UNITY_DEFINE_INSTANCED_PROP(float4,_EmissionColor)
     UNITY_DEFINE_INSTANCED_PROP(float,_Cutoff)
@@ -25,7 +25,7 @@ UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
     UNITY_DEFINE_INSTANCED_PROP(float,_DetailAlbedo)
     UNITY_DEFINE_INSTANCED_PROP(float,_DetailSmoothness)    
     UNITY_DEFINE_INSTANCED_PROP(float,_NormalScale)
-    UNITY_DEFINE_INSTANCED_PROP(float,_DetailNormalScale);
+    UNITY_DEFINE_INSTANCED_PROP(float,_DetailNormalScale)
 UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
 
 #define INPUT_PROP(name) UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial,name)

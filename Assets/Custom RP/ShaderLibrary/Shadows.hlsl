@@ -95,6 +95,11 @@ struct DirectionalShadowData{
     int shadowMaskChannel;
 };
 
+struct OtherShadowData{
+    float strength;
+    int shadowMaskChannel;
+};
+
 //该函数通过SAMPLE_TEXTURE2D_SHADOW宏对阴影图集进行采样，并向其传递图集，阴影采样器以及阴影纹理空间中的位置（这是一个对应的参数）。
 //当坐标的z值小于阴影映射纹理中的深度值时，SAMPLE_TEXTURE2D_SHADOW返回1，这意味着该点距离光源更近，不在阴影中。否则，该宏返回值为0意味着该点在阴影中。因为采样器在双线性插值之前执行比较，所以阴影的边缘将混合阴影映射纹理的纹素。
 float SampleDirectionalShadowAtlas (float3 positionSTS) {
@@ -184,6 +189,19 @@ float GetDirectionalShadowAttenuation(DirectionalShadowData directional ,ShadowD
         shadow = MixBakedAndRealTimeShadows(global,shadow,directional.shadowMaskChannel,directional.strength);
     }
     
+    return shadow;
+}
+
+float GetOtherShadowAttenuation(OtherShadowData other,ShadowData global,Surface surfaceWS){
+    #if !defined(_RECEIVE_SHADOWS)
+        return 1.0;
+    #endif
+    float shadow;
+    if(other.strength > 0){
+        shadow = GetBakedShadow(global.shadowMask,other.shadowMaskChannel,abs(other.strength));
+    }else{
+        shadow = 1.0;
+    }
     return shadow;
 }
 

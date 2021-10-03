@@ -79,7 +79,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     
     float4 base = GetBase(config);
     #if defined(_CLIPPING)
-        clip(base.a - GetCutoff(input.baseUV));
+        clip(base.a - GetCutoff(config));
     #endif
     //尽管法线向量在顶点程序中为单位长，但跨三角形的线性插值会影响其长度。我们可以通过渲染一个和向量长度之间的差（放大十倍以使其更明显）来可视化该错误。
     //base.rgb = abs(length(input.normalWS) - 1.0) * 10;

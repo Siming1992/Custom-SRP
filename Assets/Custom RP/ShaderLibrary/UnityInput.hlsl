@@ -7,6 +7,9 @@ CBUFFER_START(UnityPerDraw)
     float4x4 unity_WorldToObject;
     float4 unity_LODFade;
     real4 unity_WorldTransformParams;
+    
+    real4 unity_LightData;          //包含其 Y 分量中的灯光数量
+    real4 unity_LightIndices[2];    //一个长度为 2 的数组。两个向量的每个通道都包含一个光索引，因此每个对象最多支持八个
     //光照贴图，
     float4 unity_LightmapST;
     float4 unity_DynamicLightmapST; //即使已弃用，也请在其后添加unityDynamicLightmapST，否则SRP批处理程序的兼容性可能会中断。

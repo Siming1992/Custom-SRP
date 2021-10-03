@@ -74,6 +74,7 @@ Shader "Costom RP/Lit"
             #pragma multi_compile_instancing
             #pragma multi_compile _ _DIRECTIONAL_PCF3 _DIRECTIONAL_PCF5 _DIRECTIONAL_PCF7
             #pragma multi_compile _ _CASCADE_BLEND_SOFT _CASCADE_BLEND_DITHER
+            #pragma multi_compile _ _LIGHTS_PER_OBJECT
             
             #pragma vertex LitPassVertex
             #pragma fragment LitPassFragment

@@ -23,7 +23,7 @@ public partial class CameraRenderer
     
     Lighting _lighting = new Lighting();
 
-    public void Render(ScriptableRenderContext context, Camera camera,bool useDynamicBatching,bool useGpuInstancing,ShadowSettings shadowSettings)
+    public void Render(ScriptableRenderContext context, Camera camera,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings)
     {
         _context = context;
         _camera = camera;
@@ -39,10 +39,10 @@ public partial class CameraRenderer
         
         _buffer.BeginSample(SampleName);
         ExecuteBuffer();
-        _lighting.SetUp(context,_cullingResults,shadowSettings);
+        _lighting.SetUp(context,_cullingResults,shadowSettings,useLightsPerObject);
         _buffer.EndSample(SampleName);
         Setup();
-        DrawVisibleGeometry(useDynamicBatching,useGpuInstancing);
+        DrawVisibleGeometry(useDynamicBatching,useGpuInstancing,useLightsPerObject);
         DrawUnsupportedShaders();
         DrawGizmos();
         _lighting.Cleanup();
@@ -82,8 +82,12 @@ public partial class CameraRenderer
         ExecuteBuffer();
     }
 
-    void DrawVisibleGeometry(bool useDynamicBatching,bool useGPUInstancing)
+    void DrawVisibleGeometry(bool useDynamicBatching,bool useGPUInstancing,bool useLightsPerObject)
     {
+        PerObjectData lightsPerObjectFlag = useLightsPerObject
+            ? PerObjectData.LightData | PerObjectData.LightIndices
+            : PerObjectData.None;
+        
         var sortingSettings = new SortingSettings(_camera);
         {
             //先渲染不透明物体，SortingCriteria.CommonOpaque会按照从前向后的顺序绘制
@@ -98,7 +102,8 @@ public partial class CameraRenderer
                             PerObjectData.Lightmaps | PerObjectData.ShadowMask | 
                             PerObjectData.LightProbe| PerObjectData.LightProbeProxyVolume |
                             PerObjectData.OcclusionProbe |    //Unity还将ShadowMask数据烘焙到光探针中，我们将其称为遮挡探针（Occlusion Probes）
-                            PerObjectData.OcclusionProbeProxyVolume
+                            PerObjectData.OcclusionProbeProxyVolume|
+                            lightsPerObjectFlag
         };
         drawingSettings.SetShaderPassName(1, _litShaderTagId);
         
