@@ -19,6 +19,8 @@ struct Varying{
 //                                  Also procedural function is called to setup instance data.
 // - UNITY_TRANSFER_INSTANCE_ID     Copy instance ID from input struct to output struct. Used in vertex shader.
 
+bool _ShadowPancaking;
+
 Varying ShadowCasterPassVertex(Attributes input){
     Varying output;
     UNITY_SETUP_INSTANCE_ID(input);
@@ -27,11 +29,13 @@ Varying ShadowCasterPassVertex(Attributes input){
     output.positionCS = TransformWorldToHClip(postionWS);
     //将顶点位置固定到近平面(解决Shadow Pancaking)
     //我们通过获取剪辑空间Z和W坐标的最大值或定义UNITY_REVERSED_Z时的最小值来做到这一点。要将正确的符号用于W坐标，请乘以UNITY_NEAR_CLIP_VALUE。
-    #if UNITY_REVERSED_Z
-        output.positionCS.z = min(output.positionCS.z , output.positionCS.w * UNITY_NEAR_CLIP_VALUE);
-    #else
-        output.positionCS.z = max(output.positionCS.z , output.positionCS.w * UNITY_NEAR_CLIP_VALUE);
-    #endif
+    if(_ShadowPancaking){        //只在平行光是才打开Pancaking
+        #if UNITY_REVERSED_Z
+            output.positionCS.z = min(output.positionCS.z , output.positionCS.w * UNITY_NEAR_CLIP_VALUE);
+        #else
+            output.positionCS.z = max(output.positionCS.z , output.positionCS.w * UNITY_NEAR_CLIP_VALUE);
+        #endif
+    }
     
     output.baseUV = TransformBaseUV(input.baseUV);
     return output;

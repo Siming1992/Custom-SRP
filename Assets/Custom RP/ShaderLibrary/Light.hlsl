@@ -44,7 +44,12 @@ DirectionalShadowData GetDirectionalShadowData(int lightIndex,ShadowData shadowD
 OtherShadowData GetOtherShadowData(int lightIndex , ShadowData shadowData){
     OtherShadowData data;
     data.strength = _OhterLightShadowData[lightIndex].x;
+    data.tileIndex = _OhterLightShadowData[lightIndex].y;
+    data.isPoint = _OhterLightShadowData[lightIndex].z == 1;
     data.shadowMaskChannel = _OhterLightShadowData[lightIndex].w;
+    data.lightPositionWS = 0.0;
+    data.lightDirectionWS = 0.0;
+    data.spotDirectionWS = 0.0;
     return data;
 }
 
@@ -61,7 +66,8 @@ Light GetDirectionalLight(int index , Surface surfaceWS , ShadowData shadowData)
 Light GetOtherLight(int index, Surface surfaceWS,ShadowData shadowData){
     Light light;
     light.color = _OtherLightColors[index].rgb;
-    float3 ray = _OtherLightPositions[index].xyz - surfaceWS.position;
+    float3 position = _OtherLightPositions[index].xyz;
+    float3 ray = position - surfaceWS.position;
     light.direction = normalize(ray);
     float distanceSqr = max(dot(ray,ray),0.00001);
     //max(0,1−(d2 /r2)2)2
@@ -69,8 +75,12 @@ Light GetOtherLight(int index, Surface surfaceWS,ShadowData shadowData){
         saturate(1.0 - Square(distanceSqr * _OtherLightPositions[index].w))
     );
     float4 spotAngle = _OtherLightSpotAngles[index];
-    float spotAttenuation = Square(saturate(dot(_OtherLightDirections[index].xyz , light.direction) * spotAngle.x + spotAngle.y));
+    float3 spotDirection = _OtherLightDirections[index].xyz;
+    float spotAttenuation = Square(saturate(dot(spotDirection , light.direction) * spotAngle.x + spotAngle.y));
     OtherShadowData otherShadowData = GetOtherShadowData(index , shadowData);
+    otherShadowData.lightPositionWS = position;
+    otherShadowData.lightDirectionWS = light.direction;
+    otherShadowData.spotDirectionWS = spotDirection;
     light.attenuation = GetOtherShadowAttenuation(otherShadowData,shadowData,surfaceWS) *  
         spotAttenuation * rangeAttenuation / distanceSqr;
     return light;

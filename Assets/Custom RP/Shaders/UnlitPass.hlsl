@@ -36,7 +36,7 @@ float4 UnlitPassFragment(Varying input):SV_TARGET{
 	InputConfig config = GetInputConfig(input.baseUV);
     float4 base = GetBase(config);
     #if defined(_CLIPPING)
-        clip(base.a - GetCutoff(config);
+        clip(base.a - GetCutoff(config));
     #endif
     return base;
 }
