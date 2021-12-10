@@ -9,9 +9,11 @@ public partial class CustomRenderPipeline : RenderPipeline
     CameraRenderer _renderer = new CameraRenderer();
 
     private ShadowSettings _shadowSettings;
-    
-    public CustomRenderPipeline(bool useDynamicBatching,bool useGpuInstancing,bool useSRPBatcher,bool useLightsPerObject,ShadowSettings shadowSettings)
+
+    private PostFXSettings _postFxSettings;
+    public CustomRenderPipeline(bool useDynamicBatching,bool useGpuInstancing,bool useSRPBatcher,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
     {
+        _postFxSettings = postFxSettings;
         this.useDynamicBatching = useDynamicBatching;
         this.useGPUInstancing = useGpuInstancing;
         this._shadowSettings = shadowSettings;
@@ -26,7 +28,7 @@ public partial class CustomRenderPipeline : RenderPipeline
     {
         foreach (var camera in cameras)
         {
-            _renderer.Render(context,camera,useDynamicBatching,useGPUInstancing,useLightsPerObject,_shadowSettings);
+            _renderer.Render(context,camera,useDynamicBatching,useGPUInstancing,useLightsPerObject,_shadowSettings,_postFxSettings);
         }
     }
 }

@@ -9,6 +9,7 @@ public partial class CameraRenderer
     
     static ShaderTagId _unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit");
     static ShaderTagId _litShaderTagId = new ShaderTagId("CustomLit");
+    private static int _frameBufferId = Shader.PropertyToID("_CameraFrameBuffer");
     
     //上下文会延迟实际的渲染，直到我们提交它为止。
     //在此之前，我们对其进行配置并向其添加命令以供后续的执行。某些任务（例如绘制天空盒）提供了专属方法，但其他命令则必须通过单独的命令缓冲区（command buffer）间接执行。我们需要用这样的缓冲区来绘制场景中的其他几何图形。
@@ -22,8 +23,10 @@ public partial class CameraRenderer
     };
     
     Lighting _lighting = new Lighting();
+    
+    PostFXStack _postFxStack = new PostFXStack();
 
-    public void Render(ScriptableRenderContext context, Camera camera,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings)
+    public void Render(ScriptableRenderContext context, Camera camera,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
     {
         _context = context;
         _camera = camera;
@@ -40,12 +43,18 @@ public partial class CameraRenderer
         _buffer.BeginSample(SampleName);
         ExecuteBuffer();
         _lighting.SetUp(context,_cullingResults,shadowSettings,useLightsPerObject);
+        _postFxStack.Setup(context,camera,postFxSettings);
         _buffer.EndSample(SampleName);
         Setup();
         DrawVisibleGeometry(useDynamicBatching,useGpuInstancing,useLightsPerObject);
         DrawUnsupportedShaders();
-        DrawGizmos();
-        _lighting.Cleanup();
+        DrawGizmosBeforeFX();
+        if (_postFxStack.IsActive)
+        {
+            _postFxStack.Render(_frameBufferId);
+        }
+        DrawGizmosAfterFX();
+        Cleanup();
         Submit();
     }
 
@@ -71,6 +80,17 @@ public partial class CameraRenderer
     {
         _context.SetupCameraProperties(_camera);
         CameraClearFlags flags = _camera.clearFlags;
+
+        if (_postFxStack.IsActive)
+        {
+            if (flags > CameraClearFlags.Color)
+            {
+                flags = CameraClearFlags.Color;
+            }
+            _buffer.GetTemporaryRT(_frameBufferId,_camera.pixelWidth,_camera.pixelHeight,32,FilterMode.Bilinear,RenderTextureFormat.Default);
+            _buffer.SetRenderTarget(_frameBufferId,RenderBufferLoadAction.DontCare,RenderBufferStoreAction.Store);
+        }
+        
         //我们在开始自己的样本之前清除多余的嵌套。这样两个相邻的渲染相机示例范围被合并，否则它会显示嵌套在另一级别的Render Camera中。
         _buffer.ClearRenderTarget(
             flags <= CameraClearFlags.Depth,
@@ -118,6 +138,15 @@ public partial class CameraRenderer
         filteringSettings.renderQueueRange = RenderQueueRange.transparent;
         _context.DrawRenderers(_cullingResults,ref drawingSettings,ref filteringSettings);
         _context.DrawUIOverlay(_camera);
+    }
+
+    void Cleanup()
+    {
+        _lighting.Cleanup();
+        if (_postFxStack.IsActive)
+        {
+            _buffer.ReleaseTemporaryRT(_frameBufferId);
+        }
     }
     
     //我们向上下文发出的命令都是缓冲的。必须通过在上下文上调用Submit来提交排队的工作才会执行。
