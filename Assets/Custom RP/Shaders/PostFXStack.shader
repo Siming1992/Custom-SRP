@@ -8,6 +8,27 @@ Shader "Hidden/Custom RP/Post FX Stack"{
 		#include "../ShaderLibrary/Common.hlsl"
 		#include "PostFXStackPasses.hlsl"
 		ENDHLSL
+		
+		Pass {
+			Name "Bloom Add"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment BloomAddPassFragment
+			ENDHLSL
+		}
+		
+		Pass {
+			Name "Bloom Horizontal"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment BloomHorizontalPassFragment
+			ENDHLSL
+		}
+		
 		Pass {
 			Name "Bloom Prefilter"
 			
@@ -19,22 +40,32 @@ Shader "Hidden/Custom RP/Post FX Stack"{
 		}
 		
 		Pass {
-			Name "Bloom Combine"
+			Name "Bloom PrefilterFireflies"
 			
 			HLSLPROGRAM
 				#pragma target 3.5
 				#pragma vertex DefaultPassVertex
-				#pragma fragment BloomCombinePassFragment
+				#pragma fragment BloomPrefilterFirefliesPassFragment
 			ENDHLSL
 		}
 		
 		Pass {
-			Name "Bloom Horizontal"
+			Name "Bloom Scatter"
 			
 			HLSLPROGRAM
 				#pragma target 3.5
 				#pragma vertex DefaultPassVertex
-				#pragma fragment BloomHorizontalPassFragment
+				#pragma fragment BloomScatterPassFragment
+			ENDHLSL
+		}
+		
+		Pass {
+			Name "Bloom ScatterFinal"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment BloomScatterFinalPassFragment
 			ENDHLSL
 		}
 		
@@ -55,6 +86,36 @@ Shader "Hidden/Custom RP/Post FX Stack"{
 				#pragma vertex DefaultPassVertex
 				#pragma fragment CopyPassFragment
 		    ENDHLSL
+		}
+		
+		Pass {
+			Name "Tone Mapping ACES"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment ToneMappingACESPassFragment
+			ENDHLSL
+		}
+		
+		Pass {
+			Name "Tone Mapping Neutral"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment ToneMappingNeutralPassFragment
+			ENDHLSL
+		}
+		
+		Pass {
+			Name "Tone Mapping Reinhard"
+			
+			HLSLPROGRAM
+				#pragma target 3.5
+				#pragma vertex DefaultPassVertex
+				#pragma fragment ToneMappingReinhardPassFragment
+			ENDHLSL
 		}
     }
 }

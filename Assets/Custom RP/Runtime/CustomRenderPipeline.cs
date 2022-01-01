@@ -3,6 +3,8 @@ using UnityEngine.Rendering;
 
 public partial class CustomRenderPipeline : RenderPipeline
 {
+    private bool _allowHDR;
+    
     private bool useDynamicBatching, useGPUInstancing,useLightsPerObject;
 
     //这里Camera Renderer大致相当于URP的scriptable renderer
@@ -11,8 +13,9 @@ public partial class CustomRenderPipeline : RenderPipeline
     private ShadowSettings _shadowSettings;
 
     private PostFXSettings _postFxSettings;
-    public CustomRenderPipeline(bool useDynamicBatching,bool useGpuInstancing,bool useSRPBatcher,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
+    public CustomRenderPipeline(bool allowHDR, bool useDynamicBatching,bool useGpuInstancing,bool useSRPBatcher,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
     {
+        this._allowHDR = allowHDR;
         _postFxSettings = postFxSettings;
         this.useDynamicBatching = useDynamicBatching;
         this.useGPUInstancing = useGpuInstancing;
@@ -28,7 +31,7 @@ public partial class CustomRenderPipeline : RenderPipeline
     {
         foreach (var camera in cameras)
         {
-            _renderer.Render(context,camera,useDynamicBatching,useGPUInstancing,useLightsPerObject,_shadowSettings,_postFxSettings);
+            _renderer.Render(context,camera,_allowHDR,useDynamicBatching,useGPUInstancing,useLightsPerObject,_shadowSettings,_postFxSettings);
         }
     }
 }

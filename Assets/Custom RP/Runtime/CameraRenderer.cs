@@ -26,7 +26,8 @@ public partial class CameraRenderer
     
     PostFXStack _postFxStack = new PostFXStack();
 
-    public void Render(ScriptableRenderContext context, Camera camera,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
+    private bool _useHDR;
+    public void Render(ScriptableRenderContext context, Camera camera,bool allowHDR,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
     {
         _context = context;
         _camera = camera;
@@ -39,11 +40,13 @@ public partial class CameraRenderer
         {
             return;
         }
+
+        _useHDR = allowHDR && camera.allowHDR;
         
         _buffer.BeginSample(SampleName);
         ExecuteBuffer();
         _lighting.SetUp(context,_cullingResults,shadowSettings,useLightsPerObject);
-        _postFxStack.Setup(context,camera,postFxSettings);
+        _postFxStack.Setup(context,camera,postFxSettings,_useHDR);
         _buffer.EndSample(SampleName);
         Setup();
         DrawVisibleGeometry(useDynamicBatching,useGpuInstancing,useLightsPerObject);
@@ -87,7 +90,10 @@ public partial class CameraRenderer
             {
                 flags = CameraClearFlags.Color;
             }
-            _buffer.GetTemporaryRT(_frameBufferId,_camera.pixelWidth,_camera.pixelHeight,32,FilterMode.Bilinear,RenderTextureFormat.Default);
+
+            //帧调试器将显示默认的HDR格式为R16G16B16A16_SFloat，这意味着它是RGBA缓冲区，每通道16位，因此每像素64位，是LDR缓冲区大小的两倍。在这种情况下，每个值都是线性空间中的有符号的float，而不是固定为0~1。
+            _buffer.GetTemporaryRT(_frameBufferId, _camera.pixelWidth, _camera.pixelHeight, 32, FilterMode.Bilinear,
+                _useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default);
             _buffer.SetRenderTarget(_frameBufferId,RenderBufferLoadAction.DontCare,RenderBufferStoreAction.Store);
         }
         
