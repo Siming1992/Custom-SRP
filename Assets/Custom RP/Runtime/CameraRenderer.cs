@@ -27,7 +27,7 @@ public partial class CameraRenderer
     PostFXStack _postFxStack = new PostFXStack();
 
     private bool _useHDR;
-    public void Render(ScriptableRenderContext context, Camera camera,bool allowHDR,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings)
+    public void Render(ScriptableRenderContext context, Camera camera,bool allowHDR,bool useDynamicBatching,bool useGpuInstancing,bool useLightsPerObject,ShadowSettings shadowSettings,PostFXSettings postFxSettings, int colorLUTResolution)
     {
         _context = context;
         _camera = camera;
@@ -46,7 +46,7 @@ public partial class CameraRenderer
         _buffer.BeginSample(SampleName);
         ExecuteBuffer();
         _lighting.SetUp(context,_cullingResults,shadowSettings,useLightsPerObject);
-        _postFxStack.Setup(context,camera,postFxSettings,_useHDR);
+        _postFxStack.Setup(context,camera,postFxSettings,_useHDR,colorLUTResolution);
         _buffer.EndSample(SampleName);
         Setup();
         DrawVisibleGeometry(useDynamicBatching,useGpuInstancing,useLightsPerObject);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -52,7 +53,7 @@ public class PostFXSettings : ScriptableObject
     {
         public enum Mode
         {
-            None = -1,
+            None,
             ACES,
             Neutral,
             Reinhard
@@ -64,4 +65,95 @@ public class PostFXSettings : ScriptableObject
     [SerializeField] private ToneMappingSettings toneMapping = default;
 
     public ToneMappingSettings ToneMapping => toneMapping;
+
+    [Serializable]
+    public struct ColorAdjustmentsSettings
+    {
+        /// <summary>
+        /// 曝光度，即不受限制的浮动
+        /// </summary>
+        public float postExposure;
+        /// <summary>
+        /// 对比度
+        /// </summary>
+        [Range(-100f, 100f)] public float contrast;
+        [ColorUsage(false, true)] public Color colorFilter;
+        /// <summary>
+        /// 色相偏移
+        /// </summary>
+        [Range(-180f, 180f)] public float hueShift;
+        /// <summary>
+        /// 饱和度
+        /// </summary>
+        [Range(-100f, 100f)] public float saturation;
+    }
+
+    [SerializeField] ColorAdjustmentsSettings colorAdjustments = new ColorAdjustmentsSettings
+    {
+        colorFilter = Color.white        //默认值都为零，除了颜色过滤器应该是白色。这些设置不会改变图像。
+    };
+
+    public ColorAdjustmentsSettings ColorAdjustments => colorAdjustments;
+    
+    [Serializable]
+    public struct WhiteBalanceSettings
+    {
+        [Range(-100f, 100f)] public float temperature, tint;
+    }
+
+    [SerializeField] private WhiteBalanceSettings whiteBalance = default;
+
+    public WhiteBalanceSettings WhiteBalance => whiteBalance;
+    
+    
+    [Serializable]
+    public struct SplitToningSettings
+    {
+        [ColorUsage(false)] public Color shadows, highlights;
+        [Range(-100f, 100f)] public float balance;
+    }
+
+    [SerializeField] SplitToningSettings splitToning = new SplitToningSettings
+    {
+        shadows = Color.gray,
+        highlights = Color.gray
+    };
+
+    public SplitToningSettings SplitToning => splitToning;
+    
+    [Serializable]
+    public struct ChannelMixerSettings
+    {
+        public Vector3 red, green, blue;
+    }
+    
+    [SerializeField] ChannelMixerSettings channelMixer = new ChannelMixerSettings
+    {
+        red = Vector3.right,
+        green = Vector3.up,
+        blue = Vector3.forward
+    };
+
+    public ChannelMixerSettings ChannelMixer => channelMixer;
+    
+    [Serializable] 
+    public struct ShadowsMidtonesHighlightsSettings
+    {
+        [ColorUsage(false, true)] public Color shadows, midtones, highlights;
+        
+        [Range(0f, 2f)]
+        public float shadowsStart, shadowsEnd, highlightsStart, highLightsEnd;
+    }
+    
+    [SerializeField] ShadowsMidtonesHighlightsSettings shadowsMidtonesHighlights = new ShadowsMidtonesHighlightsSettings
+    {
+        shadows = Color.white,
+        midtones = Color.white,
+        highlights = Color.white,
+        shadowsEnd = 0.3f,
+        highlightsStart = 0.55f,
+        highLightsEnd = 1f
+    };
+
+    public ShadowsMidtonesHighlightsSettings ShadowsMidtonesHighlights => shadowsMidtonesHighlights;
 }
