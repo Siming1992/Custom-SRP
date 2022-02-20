@@ -7,7 +7,7 @@ TEXTURE2D(_MaskMap);
 TEXTURE2D(_NormalMap);
 TEXTURE2D(_EmissionMap);
 //我们还需要为纹理定义一个采样器状态，考虑到wrap 和filter的模式，该状态控制着色器应如何采样。通过SAMPLER宏实现，例如TEXTURE2D，但在名称前添加了sampler。
-SAMPLER(sampler_Basemap);
+SAMPLER(sampler_BaseMap);
 TEXTURE2D(_DetailMap);
 TEXTURE2D(_DetailNormalMap);
 SAMPLER(sampler_DetailMap);
@@ -67,14 +67,14 @@ float4 GetDetail(InputConfig c){
 
 float4 GetMask(InputConfig c){
     if(c.useMask){
-        return SAMPLE_TEXTURE2D(_MaskMap,sampler_Basemap,c.baseUV);
+        return SAMPLE_TEXTURE2D(_MaskMap,sampler_BaseMap,c.baseUV);
     }
     return 1.0;    
 }
 
 
 float4 GetBase(InputConfig c){
-    float4 map = SAMPLE_TEXTURE2D(_BaseMap,sampler_Basemap,c.baseUV);
+    float4 map = SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,c.baseUV);
     float4 color = INPUT_PROP(_BaseColor);
     
     if(c.useDetail){
@@ -88,7 +88,7 @@ float4 GetBase(InputConfig c){
 }
 
 float3 GetNormalTS(InputConfig c){
-    float4 map = SAMPLE_TEXTURE2D(_NormalMap,sampler_Basemap,c.baseUV);
+    float4 map = SAMPLE_TEXTURE2D(_NormalMap,sampler_BaseMap,c.baseUV);
     float scale = INPUT_PROP(_NormalScale);
     float3 normal = DecodeNormal(map,scale);
     
@@ -103,7 +103,7 @@ float3 GetNormalTS(InputConfig c){
 }
 
 float3 GetEmission(InputConfig c){
-    float4 map = SAMPLE_TEXTURE2D(_EmissionMap,sampler_Basemap,c.baseUV);
+    float4 map = SAMPLE_TEXTURE2D(_EmissionMap,sampler_BaseMap,c.baseUV);
     float4 color = INPUT_PROP(_EmissionColor);
     return map.rgb * color.rgb; 
 }

@@ -4,7 +4,7 @@
 //纹理需要上传到GPU的内存里，这一步Unity会为我们做。着色器需要一个相关纹理的句柄，我们可以像定义一个uniform 值那样定义它，只是我们使用名为TEXTURE2D的宏参数。
 TEXTURE2D(_BaseMap);
 //我们还需要为纹理定义一个采样器状态，考虑到wrap 和filter的模式，该状态控制着色器应如何采样。通过SAMPLER宏实现，例如TEXTURE2D，但在名称前添加了sampler。
-SAMPLER(sampler_Basemap);
+SAMPLER(sampler_BaseMap);
 
 UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
     UNITY_DEFINE_INSTANCED_PROP(float4,_BaseMap_ST)
@@ -42,7 +42,7 @@ float4 GetDetail (InputConfig c) {
 }
 
 float4 GetBase(InputConfig c){
-    float4 map = SAMPLE_TEXTURE2D(_BaseMap,sampler_Basemap,c.baseUV);
+    float4 map = SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,c.baseUV);
     float4 color = INPUT_PROP(_BaseColor);
     return map * color;
 }
