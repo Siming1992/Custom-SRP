@@ -7,6 +7,7 @@ CBUFFER_START(UnityPerDraw)
     float4x4 unity_WorldToObject;
     float4 unity_LODFade;
     real4 unity_WorldTransformParams;
+    float4 unity_RenderingLayer;
     
     real4 unity_LightData;          //包含其 Y 分量中的灯光数量
     real4 unity_LightIndices[2];    //一个长度为 2 的数组。两个向量的每个通道都包含一个光索引，因此每个对象最多支持八个

@@ -16,6 +16,7 @@ public partial class PostFXStack
 
     private ScriptableRenderContext _context;
     private Camera _camera;
+    private CameraSettings.FinalBlendMode _finalBlendMode;
     private PostFXSettings _postFxSettings;
     private bool _useHDR;
     private int colorLUTResolution;
@@ -66,6 +67,9 @@ public partial class PostFXStack
     private int _colorGradingLUTParametersId = Shader.PropertyToID("_ColorGradingLUTParameters");
     private int _colorGradingLUTInLogId = Shader.PropertyToID("_ColorGradingLUTInLogC");
 
+    private int _finalSrcBlendId = Shader.PropertyToID("_FinalSrcBlend");
+    private int _finalDstBlendId = Shader.PropertyToID("_FinalDstBlend");
+
     public PostFXStack()
     {
         _bloomPyramidId = Shader.PropertyToID("_BloomPyramid0");
@@ -75,8 +79,9 @@ public partial class PostFXStack
         }
     }
 
-    public void Setup(ScriptableRenderContext context,Camera camera,PostFXSettings postFxSettings,bool useHDR, int colorLUTResolution)
+    public void Setup(ScriptableRenderContext context, Camera camera, PostFXSettings postFxSettings, bool useHDR, int colorLUTResolution, CameraSettings.FinalBlendMode finalBlendMode)
     {
+        _finalBlendMode = finalBlendMode;
         this.colorLUTResolution = colorLUTResolution;
         _context = context;
         _camera = camera;
@@ -102,11 +107,23 @@ public partial class PostFXStack
         _buffer.Clear();    //我们不需要手动开始和结束缓冲区样本，因为我们可以完全替换目标位置，因此不需要调用ClearRenderTarget。
     }
 
-    void Draw(RenderTargetIdentifier from,RenderTargetIdentifier to,Pass pass)
+    void Draw(RenderTargetIdentifier from, RenderTargetIdentifier to, Pass pass)
     {
         _buffer.SetGlobalTexture(_fxSourceId, from);
         _buffer.SetRenderTarget(to, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
-        _buffer.DrawProcedural(Matrix4x4.identity, _postFxSettings.Material, (int) pass, MeshTopology.Triangles, 3);
+        _buffer.DrawProcedural(Matrix4x4.identity, _postFxSettings.Material, (int)pass, MeshTopology.Triangles, 3);
+    }
+
+    void DrawFinal(RenderTargetIdentifier from)
+    {
+        _buffer.SetGlobalFloat(_finalSrcBlendId, (float)_finalBlendMode.source);
+        _buffer.SetGlobalFloat(_finalDstBlendId, (float)_finalBlendMode.destination);
+
+        _buffer.SetGlobalTexture(_fxSourceId, from);
+        _buffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget,
+            _finalBlendMode.destination == BlendMode.Zero ? RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+        _buffer.SetViewport(_camera.pixelRect);
+        _buffer.DrawProcedural(Matrix4x4.identity, _postFxSettings.Material, (int)Pass.Final, MeshTopology.Triangles, 3);
     }
 
     bool DoBloom(int sourceId)
@@ -123,7 +140,7 @@ public partial class PostFXStack
         // s = min(max(0 , b - t + tk) , 2tk)² / 4tk + 0.00001
         Vector4 threshold;
         threshold.x = Mathf.GammaToLinearSpace(bloom.threshold);    //t
-        threshold.y = threshold.x * bloom.thresholdKnee;            
+        threshold.y = threshold.x * bloom.thresholdKnee;
         threshold.z = 2f * threshold.y;                            //2tk
         threshold.w = 0.25f / (threshold.y + 0.00001f);            //1 / 4tk + 0.00001
         threshold.y -= threshold.x;                                //-t+tk
@@ -134,7 +151,7 @@ public partial class PostFXStack
         Draw(sourceId, _bloomPrefilterId, bloom.fadeFireflies ? Pass.BloomPrefilterFireflies : Pass.BloomPrefilter);
         width /= 2;
         height /= 2;
-        
+
         int fromID = _bloomPrefilterId, toId = _bloomPyramidId + 1;
         int i;
         for (i = 0; i < bloom.maxIterations; i++)
@@ -160,7 +177,7 @@ public partial class PostFXStack
         _buffer.ReleaseTemporaryRT(_bloomPrefilterId);
         _buffer.SetGlobalFloat(_bloomBucibicUpsamplingId, bloom.bicubicUpsampling ? 1f : 0f);
         // Draw(fromID, BuiltinRenderTextureType.CameraTarget, Pass.Copy);
-        Pass combinePass , finalPass;
+        Pass combinePass, finalPass;
         float finalIntensity;
         if (bloom.mode == PostFXSettings.BloomSettings.Mode.Additive)
         {
@@ -177,11 +194,11 @@ public partial class PostFXStack
         }
         if (i > 1)
         {
-            _buffer.ReleaseTemporaryRT(fromID -1);
+            _buffer.ReleaseTemporaryRT(fromID - 1);
             toId -= 5;
             for (i -= 1; i > 0; i--)
             {
-                _buffer.SetGlobalTexture(_fxSource2Id,toId + 1);
+                _buffer.SetGlobalTexture(_fxSource2Id, toId + 1);
                 Draw(fromID, toId, combinePass);
                 _buffer.ReleaseTemporaryRT(fromID);
                 _buffer.ReleaseTemporaryRT(toId + 1);
@@ -198,7 +215,7 @@ public partial class PostFXStack
         _buffer.SetGlobalTexture(_fxSource2Id, sourceId);
         _buffer.GetTemporaryRT(_bloomResultId, _camera.pixelWidth, _camera.pixelHeight, 0, FilterMode.Bilinear, format);
         Draw(fromID, _bloomResultId, finalPass);
-        _buffer.ReleaseTemporaryRT(fromID);    
+        _buffer.ReleaseTemporaryRT(fromID);
         _buffer.EndSample("Bloom");
         return true;
     }
@@ -212,7 +229,7 @@ public partial class PostFXStack
             colorAdjustments.hueShift * (1f / 360f),
             colorAdjustments.saturation * 0.01f + 1f
         ));
-        _buffer.SetGlobalColor(_colorFilterId,colorAdjustments.colorFilter.linear);
+        _buffer.SetGlobalColor(_colorFilterId, colorAdjustments.colorFilter.linear);
     }
 
     void ConfigureWhiteBalance()
@@ -221,20 +238,20 @@ public partial class PostFXStack
         _buffer.SetGlobalVector(_whiteBalanceId,
             ColorUtils.ColorBalanceToLMSCoeffs(whiteBalance.temperature, whiteBalance.tint));
     }
-    
+
     void ConfigureSplitToning()
     {
         SplitToningSettings splitToning = _postFxSettings.SplitToning;
         Color splitColor = splitToning.shadows;
         splitColor.a = splitToning.balance * 0.01f;
-        _buffer.SetGlobalColor(_splitToningShadowsId,splitColor);
-        _buffer.SetGlobalColor(_splitToningHighlightsId,splitToning.highlights);
+        _buffer.SetGlobalColor(_splitToningShadowsId, splitColor);
+        _buffer.SetGlobalColor(_splitToningHighlightsId, splitToning.highlights);
     }
 
     void ConfigureChannelMixer()
     {
         ChannelMixerSettings channelMixer = _postFxSettings.ChannelMixer;
-        _buffer.SetGlobalVector(_channelMixerRedId,channelMixer.red);
+        _buffer.SetGlobalVector(_channelMixerRedId, channelMixer.red);
         _buffer.SetGlobalVector(_channelMixerGreenId, channelMixer.green);
         _buffer.SetGlobalVector(_channelMixerBlueId, channelMixer.blue);
     }
@@ -257,7 +274,7 @@ public partial class PostFXStack
         ConfigureSplitToning();
         ConfigureChannelMixer();
         ConfigureShadowsMidtonesHighlights();
-        
+
         int lutHeight = colorLUTResolution;
         int lutWidth = lutHeight * lutHeight;
         _buffer.GetTemporaryRT(
@@ -267,18 +284,18 @@ public partial class PostFXStack
         _buffer.SetGlobalVector(_colorGradingLUTParametersId, new Vector4(
             lutHeight, 0.5f / lutWidth, 0.5f / lutHeight, lutHeight / (lutHeight - 1f)
         ));
-        
+
         ToneMappingSettings.Mode mode = _postFxSettings.ToneMapping.mode;
-        Pass pass = mode < 0 ? Pass.Copy : Pass.ColorGradingNone + (int) mode;
+        Pass pass = mode < 0 ? Pass.Copy : Pass.ColorGradingNone + (int)mode;
         _buffer.SetGlobalFloat(
             _colorGradingLUTInLogId, _useHDR && pass != Pass.ColorGradingNone ? 1f : 0f
         );
         Draw(sourceId, _colorGradingLUTId, pass);
-        
+
         _buffer.SetGlobalVector(_colorGradingLUTParametersId,
             new Vector4(1f / lutWidth, 1f / lutHeight, lutHeight - 1f)
         );
-        Draw(sourceId, BuiltinRenderTextureType.CameraTarget, Pass.Final);
+        DrawFinal(sourceId);
         _buffer.ReleaseTemporaryRT(_colorGradingLUTId);
     }
 }

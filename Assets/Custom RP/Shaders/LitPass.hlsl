@@ -105,6 +105,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     surface.occlusion = GetOcclusion(config);
     surface.fresnelStrength = GetFresnel(config);
     surface.dither = InterleavedGradientNoise(input.positionCS.xy, 0);  //该函数在给定屏幕空间XY位置的情况下生成旋转的平铺抖动模式。在片段函数中，其等于剪辑空间的XY位置。它还需要使用第二个参数对其进行动画处理，我们不需要该参数，并且可以将其保留为零。
+    surface.renderingLayerMask = asuint(unity_RenderingLayer.x);
 
     #if defined(_PREMULTIPLY_ALPHA)
         BRDF brdf = GetBRDF(surface, true);
@@ -116,7 +117,7 @@ float4 LitPassFragment(Varying input):SV_TARGET{
     float3 color = GetLighting(surface,brdf,gi);
     color += GetEmission(config);
     
-    return float4(color,surface.alpha);
+    return float4(color, GetFinalAlpha(surface.alpha));
 }
 
 #endif

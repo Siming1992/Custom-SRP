@@ -54,7 +54,7 @@ Shader "Costom RP/Lit"
             }
         
             //想使用着色器属性，可以通过将其放在方括号内来访问它们
-            Blend [_SrcBlend] [_DstBlend]
+            Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
             ZWrite [_ZWrite]
         
             HLSLPROGRAM
